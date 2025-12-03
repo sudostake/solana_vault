@@ -7,10 +7,23 @@ pub mod solana_vault {
     use super::*;
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
-        msg!("Greetings from: {:?}", ctx.program_id);
+        msg!("Hello from my vault: {:?}", ctx.program_id);
+        let account_data = &mut ctx.accounts.account_data;
+        account_data.owner = *ctx.accounts.user.key;
         Ok(())
     }
 }
 
 #[derive(Accounts)]
-pub struct Initialize {}
+pub struct Initialize<'info> {
+    #[account(init, payer = user, space = 8 + 32)]
+    pub account_data: Account<'info, AccountData>,
+    #[account(mut)]
+    pub user: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[account]
+pub struct AccountData {
+    pub owner: Pubkey,
+}
