@@ -27,3 +27,5 @@ pub struct Initialize<'info> {
 pub struct AccountData {
     pub owner: Pubkey,
 }
+
+// TransferHookAccount
