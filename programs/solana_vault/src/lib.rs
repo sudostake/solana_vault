@@ -3,7 +3,6 @@ use anchor_lang::prelude::*;
 declare_id!("GuedoNc8MuqmSowhvL3MRYw21n5VGBWHo7PNoSnkaEPP");
 
 const VAULT_SEED: &[u8] = b"vault";
-const TREASURY_SEED: &[u8] = b"treasury";
 const STAKE_AUTHORITY_SEED: &[u8] = b"stake-authority";
 const WITHDRAW_AUTHORITY_SEED: &[u8] = b"withdraw-authority";
 const POSITION_SEED: &[u8] = b"position";
@@ -27,16 +26,10 @@ pub mod solana_vault {
         vault.next_position_index = 0;
         vault.min_idle_buffer_lamports = min_idle_buffer_lamports;
         vault.vault_bump = ctx.bumps.vault;
-        vault.treasury_bump = ctx.bumps.treasury;
         vault.stake_authority_bump = ctx.bumps.stake_authority;
         vault.withdraw_authority_bump = ctx.bumps.withdraw_authority;
 
         msg!("initialize_vault stub");
-        Ok(())
-    }
-
-    pub fn deposit_sol(_ctx: Context<DepositSol>, lamports: u64) -> Result<()> {
-        msg!("deposit_sol stub: {} lamports", lamports);
         Ok(())
     }
 
@@ -117,15 +110,9 @@ pub struct InitializeVault<'info> {
         seeds = [VAULT_SEED],
         bump
     )]
+    /// The vault PDA stores config and also acts as the balance-bearing account.
+    /// Funding is implicit: send SOL directly to this address.
     pub vault: Account<'info, VaultState>,
-    #[account(
-        init,
-        payer = payer,
-        space = 8 + Treasury::INIT_SPACE,
-        seeds = [TREASURY_SEED],
-        bump
-    )]
-    pub treasury: Account<'info, Treasury>,
     /// CHECK: PDA signer for future stake-program CPI.
     #[account(seeds = [STAKE_AUTHORITY_SEED], bump)]
     pub stake_authority: UncheckedAccount<'info>,
@@ -138,22 +125,10 @@ pub struct InitializeVault<'info> {
 }
 
 #[derive(Accounts)]
-pub struct DepositSol<'info> {
-    #[account(mut, seeds = [VAULT_SEED], bump = vault.vault_bump, has_one = owner)]
-    pub vault: Account<'info, VaultState>,
-    pub owner: Signer<'info>,
-    #[account(mut, seeds = [TREASURY_SEED], bump = vault.treasury_bump)]
-    pub treasury: Account<'info, Treasury>,
-    pub system_program: Program<'info, System>,
-}
-
-#[derive(Accounts)]
 pub struct WithdrawIdleSol<'info> {
     #[account(mut, seeds = [VAULT_SEED], bump = vault.vault_bump, has_one = owner)]
     pub vault: Account<'info, VaultState>,
     pub owner: Signer<'info>,
-    #[account(mut, seeds = [TREASURY_SEED], bump = vault.treasury_bump)]
-    pub treasury: Account<'info, Treasury>,
     /// CHECK: Recipient is an arbitrary system account for future SOL transfers.
     #[account(mut)]
     pub recipient: UncheckedAccount<'info>,
@@ -174,8 +149,6 @@ pub struct StakeIdleSol<'info> {
     pub vault: Account<'info, VaultState>,
     #[account(mut)]
     pub owner: Signer<'info>,
-    #[account(mut, seeds = [TREASURY_SEED], bump = vault.treasury_bump)]
-    pub treasury: Account<'info, Treasury>,
     #[account(
         init,
         payer = owner,
@@ -220,11 +193,9 @@ pub struct ManagePosition<'info> {
 #[derive(Accounts)]
 #[instruction(index: u64)]
 pub struct WithdrawInactivePosition<'info> {
-    #[account(seeds = [VAULT_SEED], bump = vault.vault_bump, has_one = owner)]
+    #[account(mut, seeds = [VAULT_SEED], bump = vault.vault_bump, has_one = owner)]
     pub vault: Account<'info, VaultState>,
     pub owner: Signer<'info>,
-    #[account(mut, seeds = [TREASURY_SEED], bump = vault.treasury_bump)]
-    pub treasury: Account<'info, Treasury>,
     #[account(mut, seeds = [POSITION_SEED, &index.to_le_bytes()], bump = position.bump)]
     pub position: Account<'info, StakePosition>,
     /// CHECK: Future managed stake account for this position.
@@ -307,14 +278,9 @@ pub struct VaultState {
     pub next_position_index: u64,
     pub min_idle_buffer_lamports: u64,
     pub vault_bump: u8,
-    pub treasury_bump: u8,
     pub stake_authority_bump: u8,
     pub withdraw_authority_bump: u8,
 }
-
-#[account]
-#[derive(InitSpace)]
-pub struct Treasury {}
 
 #[account]
 #[derive(InitSpace)]

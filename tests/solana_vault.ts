@@ -18,29 +18,8 @@ describe("solana_vault", () => {
       [Buffer.from("vault")],
       program.programId
     );
-    const [treasuryPda] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("treasury")],
-      program.programId
-    );
-    const [stakeAuthorityPda] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("stake-authority")],
-      program.programId
-    );
-    const [withdrawAuthorityPda] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("withdraw-authority")],
-      program.programId
-    );
-
     await program.methods
       .initializeVault(owner, preferredVoteAccount, new anchor.BN(1_000_000))
-      .accounts({
-        vault: vaultPda,
-        treasury: treasuryPda,
-        stakeAuthority: stakeAuthorityPda,
-        withdrawAuthority: withdrawAuthorityPda,
-        payer: owner,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      })
       .rpc();
 
     const vault = await program.account.vaultState.fetch(vaultPda);
