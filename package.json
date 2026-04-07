@@ -1,6 +1,14 @@
 {
   "license": "ISC",
   "scripts": {
+    "build": "NO_DNA=1 anchor build",
+    "test": "./scripts/anchor-test.sh",
+    "test:program": "cargo test -p solana_vault --lib",
+    "validator:start": "./scripts/surfpool-start.sh",
+    "localnet:start": "./scripts/surfpool-start.sh",
+    "deploy": "./scripts/anchor-deploy.sh",
+    "solana:config:get": "solana config get",
+    "solana:config:set": "./scripts/solana-config.sh",
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
   },
