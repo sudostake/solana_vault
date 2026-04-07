@@ -1,7 +1,6 @@
 {
   "license": "ISC",
   "scripts": {
-    "validator:start": "surfpool start --no-deploy",
     "test:program": "cargo test -p solana_vault --lib",
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w"
