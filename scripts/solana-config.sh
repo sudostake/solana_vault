@@ -2,6 +2,9 @@
 
 set -euo pipefail
 
+script_dir="${0:A:h}"
+source "${script_dir}/solana-context.sh"
+
 cluster_name="localhost"
 remaining_args=()
 
@@ -36,4 +39,4 @@ done
 
 print "Setting Solana CLI RPC URL to ${cluster_name}"
 
-solana config set --url "${cluster_name}" "${remaining_args[@]}"
+solana_cli config set --url "${cluster_name}" "${remaining_args[@]}"
