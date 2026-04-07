@@ -91,7 +91,7 @@ solana_require_rpc_url() {
   solana_resolve_context
 
   if [[ -z "${SOLANA_RPC_URL}" ]]; then
-    print -u2 "Unable to read the Solana CLI RPC URL. Run 'yarn solana:config:get' or set SOLANA_CONFIG_PATH."
+    print -u2 "Unable to read the Solana CLI RPC URL. Run 'solana config get' or set SOLANA_CONFIG_PATH."
     return 1
   fi
 }
@@ -100,7 +100,7 @@ solana_require_provider_context() {
   solana_require_rpc_url
 
   if [[ -z "${SOLANA_KEYPAIR_PATH}" ]]; then
-    print -u2 "Unable to read the Solana CLI keypair path. Run 'yarn solana:config:get' or set SOLANA_CONFIG_PATH."
+    print -u2 "Unable to read the Solana CLI keypair path. Run 'solana config get' or set SOLANA_CONFIG_PATH."
     return 1
   fi
 }
@@ -135,7 +135,7 @@ anchor_with_provider() {
   print "Cluster: ${SOLANA_RPC_URL}"
   print "Wallet: ${wallet_path}"
 
-  NO_DNA=1 anchor "${action}" \
+  exec anchor "${action}" \
     --provider.cluster "${SOLANA_RPC_URL}" \
     --provider.wallet "${wallet_path}" \
     "$@"

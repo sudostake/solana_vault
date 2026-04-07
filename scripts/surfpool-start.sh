@@ -48,20 +48,20 @@ uses_custom_airdrop_flags() {
 for arg in "$@"; do
   case "${arg}" in
     -h|--help)
-      exec env NO_DNA=1 surfpool start --no-deploy --help
+      exec surfpool start --no-deploy --help
       ;;
   esac
 done
 
 if uses_native_network_flags "$@"; then
-  exec env NO_DNA=1 surfpool start --no-deploy "$@"
+  exec surfpool start --no-deploy "$@"
 fi
 
 solana_require_rpc_url
 
 if ! solana_is_local_rpc_url "${SOLANA_RPC_URL}"; then
   print -u2 "The current Solana CLI RPC URL is not local: ${SOLANA_RPC_URL}"
-  print -u2 "Run 'yarn solana:config:set' to target localhost before starting Surfpool."
+  print -u2 "Run 'solana config set --url localhost' to target localhost before starting Surfpool."
   print -u2 "For remote clusters, skip 'yarn validator:start' and run build, deploy, and test against the configured RPC."
   exit 1
 fi
@@ -74,7 +74,7 @@ fi
 print "Surfpool environment: ${SOLANA_CLUSTER_NAME}"
 print "Local RPC: ${SOLANA_RPC_URL}"
 
-command=(env NO_DNA=1 surfpool start --no-deploy)
+command=(surfpool start --no-deploy)
 
 if [[ "${SOLANA_LOCAL_HOST}" != "127.0.0.1" || "${SOLANA_LOCAL_PORT}" != "8899" ]]; then
   command+=(--host "${SOLANA_LOCAL_HOST}" --port "${SOLANA_LOCAL_PORT}")
