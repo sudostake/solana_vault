@@ -13,17 +13,17 @@ Keep this terminal running.
 2. Build the program.
 
 ```bash
-yarn build
+anchor build
 ```
 
 3. Deploy the program.
 
 ```bash
-yarn deploy
+anchor deploy
 ```
 
 4. Test the program.
 
 ```bash
-yarn test
+anchor test --skip-build --skip-deploy --skip-local-validator
 ```

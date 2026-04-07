@@ -1,10 +1,7 @@
 {
   "license": "ISC",
   "scripts": {
-    "validator:start": "./scripts/surfpool-start.sh",
-    "build": "anchor build",
-    "deploy": "./scripts/anchor-deploy.sh",
-    "test": "./scripts/anchor-test.sh",
+    "validator:start": "surfpool start --no-deploy",
     "test:program": "cargo test -p solana_vault --lib",
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w"
