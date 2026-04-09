@@ -16,7 +16,7 @@ pub mod solana_vault {
         Ok(())
     }
 
-    /// Stub: full deposit will CPI `transfer_checked` using `authority` and `remaining_accounts` (multisig).
+    /// Stub: SPL `transfer_checked`, multisig `remaining_accounts`, and `lending_active` will land here later.
     pub fn lender_deposit(_ctx: Context<LenderDeposit>, _amount: u64) -> Result<()> {
         Ok(())
     }
