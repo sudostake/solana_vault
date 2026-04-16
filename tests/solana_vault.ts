@@ -23,8 +23,10 @@ describe("solana_vault", () => {
   ).payer;
 
   const REQUESTED = 1;
+  const FUNDED = 2;
   const REPAID = 3;
   const LIQUIDATED = 4;
+  const COUNTERED = 5;
 
   const sleep = (ms: number) =>
     new Promise((resolve) => setTimeout(resolve, ms));
@@ -38,6 +40,15 @@ describe("solana_vault", () => {
   const findTreasuryPda = (vault: anchor.web3.PublicKey) =>
     anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from("treasury"), vault.toBuffer()],
+      program.programId
+    )[0];
+
+  const findCounterOfferPda = (
+    vault: anchor.web3.PublicKey,
+    lender: anchor.web3.PublicKey
+  ) =>
+    anchor.web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("counter_offer"), vault.toBuffer(), lender.toBuffer()],
       program.programId
     )[0];
 
@@ -273,7 +284,7 @@ describe("solana_vault", () => {
       .signers([lender])
       .rpc();
 
-    await sleep(2_000);
+    await sleep(3_000);
 
     const lenderLamportsBefore = await connection.getBalance(lender.publicKey);
 
@@ -296,5 +307,164 @@ describe("solana_vault", () => {
 
     const lenderLamportsAfter = await connection.getBalance(lender.publicKey);
     expect(lenderLamportsAfter - lenderLamportsBefore).to.equal(collateral);
+  });
+
+  it("lets lenders post counter offers that borrowers can accept", async () => {
+    const requestedAmount = 250_000;
+    const requestedInterest = 20_000;
+    const requestedCollateral = 1 * anchor.web3.LAMPORTS_PER_SOL;
+    const counterAmount = 225_000;
+    const counterInterest = 35_000;
+    const counterCollateral = 750_000_000;
+    const counterDurationSeconds = 1_800;
+
+    const {
+      owner,
+      lender,
+      vaultPda,
+      treasuryPda,
+      usdcMint,
+      ownerUsdc,
+      lenderUsdc,
+    } = await setupVault();
+    const otherLender = anchor.web3.Keypair.generate();
+    await airdrop(otherLender.publicKey, 3 * anchor.web3.LAMPORTS_PER_SOL);
+    const otherLenderUsdc = await getOrCreateAssociatedTokenAccount(
+      connection,
+      payer,
+      usdcMint,
+      otherLender.publicKey
+    );
+
+    await mintTo(
+      connection,
+      payer,
+      usdcMint,
+      lenderUsdc.address,
+      payer,
+      1_000_000
+    );
+    await mintTo(
+      connection,
+      payer,
+      usdcMint,
+      otherLenderUsdc.address,
+      payer,
+      1_000_000
+    );
+
+    await program.methods
+      .openLoanRequest(
+        new anchor.BN(requestedAmount),
+        new anchor.BN(requestedInterest),
+        new anchor.BN(requestedCollateral),
+        new anchor.BN(3_600)
+      )
+      .accounts({
+        vault: vaultPda,
+        treasury: treasuryPda,
+        owner: owner.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .signers([owner])
+      .rpc();
+
+    const counterOfferPda = findCounterOfferPda(vaultPda, lender.publicKey);
+
+    await program.methods
+      .postCounterOffer(
+        new anchor.BN(counterAmount),
+        new anchor.BN(counterInterest),
+        new anchor.BN(counterCollateral),
+        new anchor.BN(counterDurationSeconds)
+      )
+      .accounts({
+        vault: vaultPda,
+        counterOffer: counterOfferPda,
+        lender: lender.publicKey,
+        systemProgram: anchor.web3.SystemProgram.programId,
+      })
+      .signers([lender])
+      .rpc();
+
+    const counterOffer = await program.account.counterOffer.fetch(
+      counterOfferPda
+    );
+    expect(counterOffer.lender.toBase58()).to.equal(
+      lender.publicKey.toBase58()
+    );
+    expect(counterOffer.amount.toNumber()).to.equal(counterAmount);
+    expect(counterOffer.interest.toNumber()).to.equal(counterInterest);
+    expect(counterOffer.collateral.toNumber()).to.equal(counterCollateral);
+    expect(counterOffer.durationSeconds.toNumber()).to.equal(
+      counterDurationSeconds
+    );
+
+    await program.methods
+      .acceptCounterOffer()
+      .accounts({
+        vault: vaultPda,
+        counterOffer: counterOfferPda,
+        owner: owner.publicKey,
+      })
+      .signers([owner])
+      .rpc();
+
+    const counteredVault = await program.account.vaultState.fetch(vaultPda);
+    expect(counteredVault.status).to.equal(COUNTERED);
+    expect(counteredVault.lender.toBase58()).to.equal(
+      lender.publicKey.toBase58()
+    );
+    expect(counteredVault.amount.toNumber()).to.equal(counterAmount);
+    expect(counteredVault.interest.toNumber()).to.equal(counterInterest);
+    expect(counteredVault.collateral.toNumber()).to.equal(counterCollateral);
+    expect(counteredVault.durationSeconds.toNumber()).to.equal(
+      counterDurationSeconds
+    );
+
+    let unauthorizedFundingError: unknown;
+    try {
+      await program.methods
+        .fundLoan()
+        .accounts({
+          vault: vaultPda,
+          lender: otherLender.publicKey,
+          lenderUsdc: otherLenderUsdc.address,
+          borrowerUsdc: ownerUsdc.address,
+          usdcMint,
+          tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+        })
+        .signers([otherLender])
+        .rpc();
+    } catch (error) {
+      unauthorizedFundingError = error;
+    }
+
+    expect(String(unauthorizedFundingError)).to.include(
+      "Only the accepted counter-offer lender can fund this loan"
+    );
+
+    await program.methods
+      .fundLoan()
+      .accounts({
+        vault: vaultPda,
+        lender: lender.publicKey,
+        lenderUsdc: lenderUsdc.address,
+        borrowerUsdc: ownerUsdc.address,
+        usdcMint,
+        tokenProgram: anchor.utils.token.TOKEN_PROGRAM_ID,
+      })
+      .signers([lender])
+      .rpc();
+
+    const fundedVault = await program.account.vaultState.fetch(vaultPda);
+    expect(fundedVault.status).to.equal(FUNDED);
+    expect(fundedVault.lender.toBase58()).to.equal(lender.publicKey.toBase58());
+
+    const borrowerBalanceAfterFunding = await getAccount(
+      connection,
+      ownerUsdc.address
+    );
+    expect(Number(borrowerBalanceAfterFunding.amount)).to.equal(counterAmount);
   });
 });
